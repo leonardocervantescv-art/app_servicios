@@ -12,7 +12,7 @@ const verificarToken = (req, res, next) => {
     }
 
     try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'clave_secreta_servicios_app');
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
         req.usuario = decoded; // Adjunta id_usuario y id_rol a la petición
         next();
     } catch (error) {
