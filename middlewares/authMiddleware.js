@@ -23,6 +23,18 @@ const verificarToken = (req, res, next) => {
     }
 };
 
+// Restringe una ruta a ciertos roles. Debe usarse después de verificarToken.
+const verificarRol = (...rolesPermitidos) => (req, res, next) => {
+    if (!rolesPermitidos.includes(Number(req.usuario.id_rol))) {
+        return res.status(403).json({
+            ok: false,
+            mensaje: 'No tienes permisos para realizar esta acción.'
+        });
+    }
+    next();
+};
+
 module.exports = {
-    verificarToken
+    verificarToken,
+    verificarRol
 };
