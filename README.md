@@ -16,14 +16,15 @@ La documentación de cada parte está en su carpeta:
 ## Cómo correrlo en local
 
 ### 1. Base de datos
-Crea la base `servicios_app` en MySQL y aplica, en orden, los scripts de [`backend/sql/`](backend/sql/):
+Para una base nueva, un solo script crea todo (21 tablas, procedimientos, función y catálogos de roles y categorías):
 
-```
-001_chat_archivos_notificaciones.sql
-002_servicios_buscar_enriquecido.sql
+```bash
+mysql --comments -u root -p < backend/sql/schema_completo.sql
 ```
 
-Los scripts de tablas anteriores (usuarios, servicios, publicaciones, etc.) no están versionados todavía.
+Las migraciones numeradas de [`backend/sql/`](backend/sql/) (`001_...`, `002_...`) ya están incluidas en ese archivo. Sirven para actualizar una base que ya existe sin recrearla; los cambios futuros se agregan ahí como `003_...`, `004_...`.
+
+El script no incluye datos de usuarios ni de la aplicación.
 
 ### 2. Backend
 ```bash
