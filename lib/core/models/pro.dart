@@ -1,9 +1,70 @@
 class Pro {
+  /// `id_usuario` del trabajador. Es null solo en los datos de ejemplo.
+  final int? id;
   final String name;
-  final double rating;
-  final int reviews;
-  final String distance;
-  final String availability;
 
-  const Pro(this.name, this.rating, this.reviews, this.distance, this.availability);
+  /// null mientras el trabajador no tenga reseñas (o el backend no las envíe).
+  final double? rating;
+  final int reviews;
+
+  /// Sin geolocalización por ahora: siempre null con datos reales.
+  final String? distance;
+  final String? availability;
+
+  final String? categoria;
+  final String? tipoPago;
+  final double? precioBase;
+  final String? descripcion;
+
+  const Pro({
+    this.id,
+    required this.name,
+    this.rating,
+    this.reviews = 0,
+    this.distance,
+    this.availability,
+    this.categoria,
+    this.tipoPago,
+    this.precioBase,
+    this.descripcion,
+  });
+
+  /// MySQL entrega los DECIMAL (precios, promedios) como texto: "150.00".
+  static double? _numero(Object? valor) =>
+      valor == null ? null : double.tryParse('$valor');
+
+  /// Una fila de `GET /api/servicios/buscar`.
+  factory Pro.fromServicioJson(Map<String, dynamic> json) {
+    final disponible = json['disponible'];
+    return Pro(
+      id: (json['id_usuario'] as num).toInt(),
+      name: '${json['nombre']} ${json['apellido']}'.trim(),
+      rating: _numero(json['calificacion_promedio']),
+      reviews: _numero(json['total_resenas'])?.toInt() ?? 0,
+      availability: disponible == null
+          ? null
+          : ((disponible == true || disponible == 1) ? 'Disponible' : 'No disponible'),
+      categoria: json['nombre_categoria'] as String?,
+      tipoPago: json['tipo_pago'] as String?,
+      precioBase: _numero(json['precio_base']),
+      descripcion: json['descripcion_servicio'] as String?,
+    );
+  }
+
+  /// "$150 por hora", "$500 por día" o "Precio a convenir".
+  String get precioTexto {
+    final precio = precioBase;
+    if (precio == null) return 'Precio a convenir';
+    final monto = precio == precio.roundToDouble()
+        ? precio.toStringAsFixed(0)
+        : precio.toStringAsFixed(2);
+    final sufijo = switch (tipoPago) {
+      'Día' => ' por día',
+      'Por hora' => ' por hora',
+      'Por trabajo' => ' por trabajo',
+      'Destajo' => ' a destajo',
+      _ => '',
+    };
+    return '\$$monto$sufijo';
+  }
 }

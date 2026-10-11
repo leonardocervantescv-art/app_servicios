@@ -155,19 +155,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Text(p.name,
                       style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800)),
                   const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      Stars(rating: p.rating, size: 18),
-                      const SizedBox(width: 8),
-                      Text('${p.rating} (${p.reviews} reseñas)',
-                          style: const TextStyle(color: C.muted, fontSize: 13)),
-                    ],
-                  ),
+                  if (p.rating != null)
+                    Row(
+                      children: [
+                        Stars(rating: p.rating!, size: 18),
+                        const SizedBox(width: 8),
+                        Text('${p.rating!.toStringAsFixed(1)} (${p.reviews} reseñas)',
+                            style: const TextStyle(color: C.muted, fontSize: 13)),
+                      ],
+                    )
+                  else
+                    const Text('Sin reseñas aún',
+                        style: TextStyle(color: C.muted, fontSize: 13)),
                   const SizedBox(height: 8),
-                  const Text('Electricista',
-                      style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
+                  Text(p.categoria ?? 'Profesional',
+                      style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 6),
-                  _info(Icons.location_on, 'A ${p.distance} de ti'),
+                  if (p.distance != null) _info(Icons.location_on, 'A ${p.distance} de ti'),
                   _info(Icons.workspace_premium, '3 años de experiencia'),
                   _info(Icons.schedule, 'Responde en menos de 1 hora'),
                   const SizedBox(height: 10),

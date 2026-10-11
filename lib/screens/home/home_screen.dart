@@ -1,25 +1,98 @@
 import 'package:flutter/material.dart';
 import 'package:manocerca/core/theme/app_theme.dart';
 import 'package:manocerca/core/theme/colors.dart';
+import 'package:manocerca/core/utils/categoria_icono.dart';
 import 'package:manocerca/providers/auth_provider.dart';
+import 'package:manocerca/providers/categorias_provider.dart';
 import 'package:manocerca/screens/pro_list/pro_list_screen.dart';
 import 'package:provider/provider.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
-  static const _cats = [
-    [Icons.carpenter, 'Carpinteros'],
-    [Icons.bolt, 'Electricistas'],
-    [Icons.construction, 'Albañiles'],
-    [Icons.plumbing, 'Plomeros'],
-    [Icons.format_paint, 'Pintores'],
-    [Icons.eco, 'Jardineros'],
-  ];
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) context.read<CategoriasProvider>().cargarSiHaceFalta();
+    });
+  }
+
+  Widget _categorias(CategoriasProvider cats) {
+    if (cats.items.isEmpty) {
+      if (cats.cargando) {
+        return const Padding(
+          padding: EdgeInsets.symmetric(vertical: 32),
+          child: Center(child: CircularProgressIndicator()),
+        );
+      }
+      if (cats.error != null) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Column(
+            children: [
+              Text(cats.error!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: C.muted, fontSize: 14)),
+              const SizedBox(height: 8),
+              TextButton(onPressed: cats.recargar, child: const Text('Reintentar')),
+            ],
+          ),
+        );
+      }
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 24),
+        child: Center(
+          child: Text('Aún no hay categorías disponibles.',
+              style: TextStyle(color: C.muted, fontSize: 14)),
+        ),
+      );
+    }
+
+    return GridView.count(
+      crossAxisCount: 3,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      mainAxisSpacing: 10,
+      crossAxisSpacing: 10,
+      childAspectRatio: 1.15,
+      children: [
+        for (final c in cats.items)
+          InkWell(
+            borderRadius: BorderRadius.circular(14),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => ProListScreen(categoria: c)),
+            ),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              decoration: cardDeco(14),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(iconoDeCategoria(c.nombre), color: C.light, size: 30),
+                  const SizedBox(height: 8),
+                  Text(c.nombre,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 12)),
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final nombre = context.watch<AuthProvider>().usuario?.nombre ?? '';
+    final cats = context.watch<CategoriasProvider>();
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
       child: Column(
@@ -100,36 +173,7 @@ class HomeScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          GridView.count(
-            crossAxisCount: 3,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            mainAxisSpacing: 10,
-            crossAxisSpacing: 10,
-            childAspectRatio: 1.15,
-            children: [
-              for (final c in _cats)
-                InkWell(
-                  borderRadius: BorderRadius.circular(14),
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => ProListScreen(title: c[1] as String)),
-                  ),
-                  child: Container(
-                    decoration: cardDeco(14),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(c[0] as IconData, color: C.light, size: 30),
-                        const SizedBox(height: 8),
-                        Text(c[1] as String, style: const TextStyle(fontSize: 12)),
-                      ],
-                    ),
-                  ),
-                ),
-            ],
-          ),
+          _categorias(cats),
         ],
       ),
     );

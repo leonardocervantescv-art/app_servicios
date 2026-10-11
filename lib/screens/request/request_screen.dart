@@ -58,18 +58,22 @@ class _RequestScreenState extends State<RequestScreen> {
                           style: const TextStyle(
                               fontSize: 16, fontWeight: FontWeight.w700)),
                       const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Stars(rating: p.rating, size: 13),
-                          const SizedBox(width: 6),
-                          Text('${p.rating} (${p.reviews})',
-                              style:
-                                  const TextStyle(color: C.muted, fontSize: 12)),
-                        ],
-                      ),
+                      if (p.rating != null)
+                        Row(
+                          children: [
+                            Stars(rating: p.rating!, size: 13),
+                            const SizedBox(width: 6),
+                            Text('${p.rating!.toStringAsFixed(1)} (${p.reviews})',
+                                style:
+                                    const TextStyle(color: C.muted, fontSize: 12)),
+                          ],
+                        )
+                      else
+                        const Text('Sin reseñas aún',
+                            style: TextStyle(color: C.muted, fontSize: 12)),
                       const SizedBox(height: 2),
-                      const Text('Electricista',
-                          style: TextStyle(color: C.muted, fontSize: 13)),
+                      Text(p.categoria ?? 'Profesional',
+                          style: const TextStyle(color: C.muted, fontSize: 13)),
                     ],
                   ),
                 ],

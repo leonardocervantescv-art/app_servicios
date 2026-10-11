@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:manocerca/app.dart';
 import 'package:manocerca/providers/auth_provider.dart';
+import 'package:manocerca/providers/categorias_provider.dart';
 import 'package:manocerca/services/api_client.dart';
 import 'package:provider/provider.dart';
 
@@ -124,6 +125,7 @@ void main() {
           providers: [
             Provider<ApiClient>.value(value: api),
             ChangeNotifierProvider(create: (_) => AuthProvider(api)),
+            ChangeNotifierProvider(create: (_) => CategoriasProvider(api)),
           ],
           child: const Hogarix(),
         ),
@@ -174,6 +176,7 @@ void main() {
           providers: [
             Provider<ApiClient>.value(value: api),
             ChangeNotifierProvider(create: (_) => AuthProvider(api)),
+            ChangeNotifierProvider(create: (_) => CategoriasProvider(api)),
           ],
           child: const Hogarix(),
         ),
