@@ -1,3 +1,5 @@
+import 'package:manocerca/core/utils/precio.dart';
+
 class Pro {
   /// `id_usuario` del trabajador. Es null solo en los datos de ejemplo.
   final int? id;
@@ -51,20 +53,5 @@ class Pro {
     );
   }
 
-  /// "$150 por hora", "$500 por día" o "Precio a convenir".
-  String get precioTexto {
-    final precio = precioBase;
-    if (precio == null) return 'Precio a convenir';
-    final monto = precio == precio.roundToDouble()
-        ? precio.toStringAsFixed(0)
-        : precio.toStringAsFixed(2);
-    final sufijo = switch (tipoPago) {
-      'Día' => ' por día',
-      'Por hora' => ' por hora',
-      'Por trabajo' => ' por trabajo',
-      'Destajo' => ' a destajo',
-      _ => '',
-    };
-    return '\$$monto$sufijo';
-  }
+  String get precioTexto => textoPrecio(precioBase, tipoPago);
 }
