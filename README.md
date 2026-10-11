@@ -10,10 +10,7 @@ Piensa en el backend como el "cerebro" de la app: guarda todos los datos (usuari
 
 Para eso, Flutter y el backend se hablan con **peticiones HTTP**: Flutter manda una petición (por ejemplo "dame los servicios de la categoría Carpintería") y el backend responde con la información en un formato llamado JSON, que es básicamente una lista organizada de datos.
 
-Hay dos piezas más en la arquitectura, pero ninguna vive en este proyecto:
-
-- **MySQL**: donde se guardan realmente los datos (usuarios, servicios, publicaciones, citas, etc.). El backend es el único que le habla directamente a MySQL.
-- **Firebase**: se usa aparte para el **chat** entre cliente y trabajador, para **guardar imágenes** (fotos de perfil, publicaciones, trabajos), y en el futuro para **notificaciones push**. Flutter se conecta a Firebase directamente para esas tres cosas, sin pasar por este backend.
+Todos los datos viven en **MySQL**: usuarios, servicios, publicaciones, citas, **mensajes del chat** y **notificaciones**. El backend es el único que le habla directamente a MySQL. Las **imágenes** (fotos de perfil, publicaciones, trabajos, fotos del chat) se suben a este mismo backend, que las guarda en una carpeta del servidor y anota en MySQL dónde quedó cada una. No se usa Firebase.
 
 ## Los dos tipos de usuario
 
@@ -37,15 +34,18 @@ Cuando el usuario inicia sesión, el backend le entrega una especie de "gafete d
 7. **Reseñas** — al completar una solicitud, cliente y trabajador pueden calificarse mutuamente (1 a 5 estrellas + comentario).
 8. **Favoritos** — el cliente guarda trabajadores para encontrarlos rápido después.
 9. **Reportes y bloqueos** — para mantener la comunidad segura, requisito habitual de Play Store cuando hay contenido generado por usuarios.
-10. **Notificaciones (preparación)** — el backend ya puede guardar el identificador del celular de cada usuario para mandarle notificaciones push más adelante; el envío real se conectará después con Firebase.
+10. **Notificaciones dentro de la app** — la "campanita": avisos cuando llega una solicitud nueva o cuando cambia su estado (aceptada, rechazada, completada, cancelada). El usuario los ve al abrir la app; todavía no hay notificaciones push con la app cerrada.
 11. **Agenda / calendario del trabajador** — el trabajador puede bloquear horarios propios (citas, trabajos, tiempo ocupado). El sistema no deja crear dos eventos que se crucen en el mismo horario. Es privada: solo el trabajador ve su propia agenda.
+12. **Chat** — conversaciones entre dos usuarios con mensajes de texto o imagen, contador de mensajes sin leer y aviso de "leído". Respeta los bloqueos: si alguien te bloqueó (o tú a él), la conversación se oculta y no se pueden enviar mensajes.
+13. **Subida de imágenes** — la app manda la foto al backend, el backend revisa que de verdad sea una imagen (JPG, PNG o WEBP, máximo 5 MB), la guarda y devuelve su dirección para usarla en publicaciones, chat, etc.
 
 ## Qué falta todavía
 
 - Editar el perfil propio (nombre, teléfono, foto) y eliminar la cuenta.
 - Recuperar/cambiar contraseña.
-- Conectar este backend con Firebase para que el chat y las notificaciones reconozcan a los mismos usuarios.
-- Enviar notificaciones push de verdad (hoy solo se guarda el identificador del celular).
+- Notificaciones push con la app cerrada. En Android eso requiere Firebase Cloud Messaging (solo como mensajero; los datos seguirían en MySQL). Mientras tanto, las notificaciones se ven dentro de la app.
+- Chat en tiempo real con WebSockets. Hoy la app consulta los mensajes nuevos cada pocos segundos, lo cual funciona bien para empezar.
+- Guardar las imágenes en un almacenamiento externo (S3, Cloudflare R2…) cuando la app esté en producción, para no depender del disco del servidor.
 - Búsqueda más completa (por texto libre, ordenar por calificación, etc.).
 - Geolocalización y verificación de identidad del trabajador — decididas a propósito para el final del proyecto, porque agregan trámites y permisos adicionales para publicar en Play Store.
 - Ajustes de seguridad antes de publicar la app (HTTPS, límites de intentos de login, etc.).
@@ -54,6 +54,6 @@ Cuando el usuario inicia sesión, el backend le entrega una especie de "gafete d
 
 1. Flutter le pide al backend con peticiones HTTP normales (`GET`, `POST`, `PUT`, `DELETE`) todo lo relacionado con cuentas, búsqueda, publicaciones, solicitudes, reseñas, favoritos, moderación y agenda.
 2. Después de iniciar sesión, Flutter guarda el token de forma segura en el celular (no en cualquier archivo) y lo manda en cada petición a las rutas que lo requieren.
-3. Para el **chat**, Flutter se conecta directo a Firebase (no a este backend). El identificador de cada usuario en Firebase será el mismo `id_usuario` que usa este backend, para poder relacionar todo.
-4. Para **imágenes** (fotos de perfil, publicaciones, portafolio), Flutter sube el archivo directo a Firebase Storage, obtiene el link de la imagen, y ese link es lo que se le manda al backend para guardarlo junto con la publicación o el perfil.
+3. Para el **chat**, Flutter usa los endpoints de `/api/conversaciones`: abre la conversación, envía mensajes y cada pocos segundos pregunta si hay mensajes nuevos.
+4. Para **imágenes**, Flutter primero sube el archivo a `POST /api/archivos`; el backend responde con la ruta de la imagen (`/uploads/...`), y esa ruta es la que se manda después al crear la publicación o el mensaje. Para mostrarla, se le antepone la dirección del servidor.
 5. El backend responde siempre en el mismo formato: `{ "ok": true/false, "mensaje": "...", "data": ... }`, así Flutter puede manejar todas las respuestas de forma consistente, sepa si algo salió bien o mal, y mostrar el mensaje de error tal cual cuando `ok` es `false`.

@@ -1,6 +1,45 @@
 const SolicitudModel = require('../models/solicitudModel');
-const { TIPOS_PAGO, ESTADOS_SOLICITUD } = require('../config/constantes');
+const { TIPOS_PAGO, ESTADOS_SOLICITUD, TIPOS_NOTIFICACION } = require('../config/constantes');
 const { entero, paginacion, manejarError, solicitudInvalida } = require('../utils/helpers');
+const { notificar } = require('../utils/notificar');
+
+const AVISOS_ESTADO = {
+    Aceptado: { titulo: 'Solicitud aceptada', cuerpo: 'El trabajador aceptó tu solicitud.' },
+    Rechazado: { titulo: 'Solicitud rechazada', cuerpo: 'El trabajador rechazó tu solicitud.' },
+    Completado: { titulo: 'Trabajo completado', cuerpo: 'La solicitud se marcó como completada. Ya puedes dejar tu reseña.' },
+    Cancelado: { titulo: 'Solicitud cancelada', cuerpo: 'La solicitud fue cancelada.' }
+};
+
+// Devuelve el id de la otra parte de la solicitud (cliente <-> trabajador).
+const otraParte = (fila, id_usuario) => {
+    const cliente = Number(fila?.id_cliente);
+    const trabajador = Number(fila?.id_trabajador);
+    if (!cliente || !trabajador) return null;
+    if (id_usuario === cliente) return trabajador;
+    if (id_usuario === trabajador) return cliente;
+    return null;
+};
+
+// Avisa a la otra parte del cambio de estado. Si falla, no afecta la respuesta.
+const notificarCambioEstado = async (id_usuario, id_solicitud, estado, resultado) => {
+    const aviso = AVISOS_ESTADO[estado];
+    if (!aviso) return;
+    try {
+        let destinatario = otraParte(resultado, id_usuario);
+        if (!destinatario) {
+            const [fila] = await SolicitudModel.listar({ id_usuario, id_solicitud, limite: 1, offset: 0 });
+            destinatario = otraParte(fila, id_usuario);
+        }
+        await notificar(destinatario, {
+            tipo: TIPOS_NOTIFICACION.SOLICITUD_ESTADO,
+            titulo: aviso.titulo,
+            cuerpo: aviso.cuerpo,
+            id_referencia: id_solicitud
+        });
+    } catch (error) {
+        console.error('No se pudo notificar el cambio de estado:', error.message);
+    }
+};
 
 const crearSolicitud = async (req, res) => {
     try {
@@ -30,6 +69,14 @@ const crearSolicitud = async (req, res) => {
             tipo_pago_acordado: body.tipo_pago_acordado,
             monto_estimado
         });
+
+        await notificar(id_trabajador, {
+            tipo: TIPOS_NOTIFICACION.SOLICITUD_NUEVA,
+            titulo: 'Nueva solicitud de trabajo',
+            cuerpo: 'Un cliente te envió una solicitud. Revísala para aceptarla o rechazarla.',
+            id_referencia: id_solicitud
+        });
+
         return res.status(201).json({ ok: true, mensaje: 'Solicitud enviada.', id_solicitud });
     } catch (error) {
         return manejarError(res, error, 'crearSolicitud');
@@ -90,6 +137,7 @@ const cambiarEstadoSolicitud = async (req, res) => {
         }
 
         const resultado = await SolicitudModel.cambiarEstado(req.usuario.id_usuario, id_solicitud, estado);
+        await notificarCambioEstado(req.usuario.id_usuario, id_solicitud, estado, resultado);
         return res.status(200).json({ ok: true, mensaje: `Solicitud ${estado.toLowerCase()}.`, data: resultado });
     } catch (error) {
         return manejarError(res, error, 'cambiarEstadoSolicitud');

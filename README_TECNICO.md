@@ -7,6 +7,8 @@ Backend REST en Node.js/Express + MySQL para la app de servicios/trabajos. Para 
 - Node.js + Express 5
 - MySQL 8 (probado contra 8.0.42), driver `mysql2/promise` con pool de conexiones
 - Autenticación: `jsonwebtoken` + `bcryptjs`
+- Subida de archivos: `multer` (en memoria, validado y luego escrito a disco)
+- Sin Firebase: chat, notificaciones e imágenes viven en MySQL + disco del servidor
 - Toda la lógica de negocio y las consultas viven en **procedimientos almacenados**; el código JS no arma SQL a mano (decisión explícita del proyecto para no exponer las consultas).
 
 ## Estructura
@@ -16,16 +18,33 @@ app.js                  # registro de middlewares globales y montaje de routers
 server.js                # arranque del servidor (lee PORT)
 config/
   db.js                  # pool mysql2 (lee DB_HOST, DB_USER, DB_PASSWORD, DB_NAME)
-  constantes.js           # ROLES, TIPOS_PAGO, ESTADOS_SOLICITUD, PLATAFORMAS
+  constantes.js           # ROLES, TIPOS_PAGO, ESTADOS_SOLICITUD, PLATAFORMAS, TIPOS_NOTIFICACION, CHAT
+  almacenamiento.js       # UPLOADS_DIR, límites y detección de tipo de imagen para multer
 middlewares/
   authMiddleware.js       # verificarToken, verificarRol(...roles)
 utils/
-  helpers.js              # entero, texto, paginacion, esUrlHttps, fechaValida, manejarError, solicitudInvalida
+  helpers.js              # entero, texto, paginacion, esUrlHttps, esUrlImagen, urlAbsoluta, fechaValida, manejarError, solicitudInvalida
+  notificar.js            # notificar(id_usuario, {...}): crea una notificación sin lanzar errores
 routes/ · controllers/ · models/
   un archivo por módulo, mismo nombre en los tres (p. ej. agendaRoutes.js -> agendaController.js -> agendaModel.js)
-database/
-  schema.sql              # DDL original (roles, usuarios, categorías, servicios, publicaciones, solicitudes)
+database/                 # (ignorada por git) schema.sql original
+sql/
+  001_chat_archivos_notificaciones.sql   # migración versionada: tablas + procedimientos nuevos
+uploads/                  # (ignorada por git) imágenes subidas, servidas en /uploads
 ```
+
+## Migraciones
+
+A partir de ahora los cambios de base de datos se versionan en `sql/` con un número consecutivo. Cada archivo es re-ejecutable (`CREATE TABLE IF NOT EXISTS`, `DROP PROCEDURE IF EXISTS`).
+
+```bash
+mysql -u root -p servicios_app < sql/001_chat_archivos_notificaciones.sql
+```
+
+`001` agrega las tablas `archivos`, `conversaciones`, `mensajes` y `notificaciones`, la función `fn_hay_bloqueo` y sus procedimientos. Antes de crear nada verifica el esquema existente y se detiene con un mensaje claro si no coincide:
+
+- `usuarios` debe tener `id_usuario` (INT con signo), `nombre`, `apellido`, `activo`.
+- `bloqueos` debe tener `id_usuario` (quien bloquea) e `id_bloqueado`. Si en la base real se llaman distinto, solo hay que ajustar `fn_hay_bloqueo` (único lugar que las usa) y la verificación del inicio del script.
 
 **Importante:** `database/schema.sql` quedó desactualizado. Las tablas y procedimientos agregados después (reseñas, favoritos, reportes, bloqueos, likes, imágenes de portafolio, dispositivos de notificación, `eventos_agenda`) se entregaron como scripts SQL sueltos en la conversación y se aplicaron directo a la base, pero no se consolidaron en ese archivo. Si necesitas recrear la base desde cero, hay que juntar esos scripts — decir si se quiere que se centralicen en un solo archivo versionado.
 
@@ -38,6 +57,8 @@ DB_PASSWORD=...
 DB_NAME=servicios_app
 PORT=3001
 JWT_SECRET=...   # obligatorio: sin fallback en código, la app falla si falta
+UPLOADS_DIR=...  # opcional: carpeta de imágenes subidas (por defecto ./uploads)
+PUBLIC_URL=...   # opcional: URL pública del servidor para armar URLs absolutas (por defecto, el host de la petición)
 ```
 
 ## Patrón de capas
@@ -122,8 +143,43 @@ Los demás procedimientos multi-statement (agenda, servicios, etc.) manejan su p
 | Agenda | `GET /api/agenda?desde=&hasta=` | Sí | Trabajador |
 | Agenda | `POST /api/agenda` | Sí | Trabajador |
 | Agenda | `PUT/DELETE /api/agenda/:id_evento` | Sí | Trabajador |
+| Archivos | `POST /api/archivos` (multipart, campo `archivo`) | Sí | — |
+| Chat | `GET /api/conversaciones?pagina=&limite=` | Sí | — |
+| Chat | `POST /api/conversaciones` (body `id_usuario`) | Sí | — |
+| Chat | `GET /api/conversaciones/no-leidos` | Sí | — |
+| Chat | `GET /api/conversaciones/:id_conversacion/mensajes?despues_de=&antes_de=&limite=` | Sí | — |
+| Chat | `POST /api/conversaciones/:id_conversacion/mensajes` (body `contenido?`, `url_imagen?`) | Sí | — |
+| Chat | `PATCH /api/conversaciones/:id_conversacion/leida` | Sí | — |
+| Notificaciones | `GET /api/notificaciones?no_leidas=&pagina=&limite=` | Sí | — |
+| Notificaciones | `GET /api/notificaciones/no-leidas` | Sí | — |
+| Notificaciones | `PATCH /api/notificaciones/leidas` (todas) | Sí | — |
+| Notificaciones | `PATCH /api/notificaciones/:id_notificacion/leida` | Sí | — |
 
-Formato de respuesta uniforme: `{ ok: boolean, mensaje?: string, data?: any, total?: number }`.
+Formato de respuesta uniforme: `{ ok: boolean, mensaje?: string, data?: any, total?: number }`. Las rutas inexistentes bajo `/api` y el JSON malformado también responden con ese formato (404 y 400).
+
+## Imágenes
+
+1. El cliente sube la imagen a `POST /api/archivos` (multipart/form-data, campo `archivo`).
+2. Se recibe en memoria (máx. 5 MB), se valida el tipo real por sus primeros bytes (JPG, PNG o WEBP; si no, 415) y se escribe en `UPLOADS_DIR/imagenes/AAAA/MM/<uuid>.<ext>`. Se registra en la tabla `archivos`.
+3. La respuesta trae `ruta` (`/uploads/imagenes/...`, **lo que se guarda en la base**) y `url` (absoluta, para mostrarla de inmediato).
+4. Esa `ruta` se manda en `imagenes` de una publicación o en `url_imagen` de un mensaje. `esUrlImagen` acepta esas rutas o URLs `https://` externas.
+5. Se guarda la ruta relativa (no la absoluta) porque el host cambia según desde dónde se conecte la app (`localhost`, `10.0.2.2` en el emulador, la IP de la red). El cliente le antepone la dirección del servidor para mostrarla.
+
+## Chat
+
+- Una conversación por par de usuarios (`id_usuario_1 < id_usuario_2`, único). `POST /api/conversaciones` la crea o devuelve la existente.
+- La bandeja (`GET /api/conversaciones`) solo muestra conversaciones con al menos un mensaje, la más reciente primero, con el último mensaje y `no_leidos`.
+- Lectura: cada lado guarda `ultimo_leido_N` (id del último mensaje visto). `PATCH .../leida` lo actualiza; cada mensaje trae `leido` = si el otro ya lo vio.
+- Tiempo real por consulta periódica: la app pide `GET .../mensajes?despues_de=<último id que tiene>` cada pocos segundos. Para el historial anterior usa `antes_de=<id más viejo>`. Sin parámetros devuelve los últimos `limite` (30 por defecto, máx. 100), siempre en orden cronológico.
+- Bloqueos (`fn_hay_bloqueo`): con bloqueo en cualquier dirección no se puede iniciar ni enviar (403), y la conversación se oculta de la bandeja.
+
+## Notificaciones
+
+- Solo dentro de la app (tabla `notificaciones`); no hay push.
+- Se generan desde los controllers con `utils/notificar.js`, que nunca lanza error, así un fallo al notificar no rompe la acción principal.
+- Eventos actuales: `solicitud_nueva` (al trabajador cuando le crean una solicitud) y `solicitud_estado` (a la otra parte cuando la solicitud se acepta, rechaza, completa o cancela). `id_referencia` = `id_solicitud`.
+- Para saber a quién avisar en un cambio de estado se leen `id_cliente` e `id_trabajador` del resultado de `sp_solicitud_cambiar_estado` o, si no vienen, de `sp_solicitud_listar`. Si los procedimientos usan otros nombres de columna, el cambio de estado funciona igual pero no se genera el aviso — ajustar `otraParte` en `solicitudController.js`.
+- El módulo `dispositivos` (token FCM) se conserva sin uso por si más adelante se agregan notificaciones push.
 
 ## Reglas de negocio implementadas en procedimientos (resumen)
 
@@ -145,8 +201,10 @@ No hay suite de tests automatizada todavía. El flujo usado durante el desarroll
 
 - Endpoints de editar perfil propio, eliminar cuenta, cambiar/recuperar contraseña.
 - Endpoints de portafolio (tabla `imagenes_portafolio` ya existe, sin CRUD expuesto).
-- Puente con Firebase Admin SDK (`createCustomToken`) para que el chat/Storage/FCM reconozcan al mismo `id_usuario`.
-- Envío real de notificaciones push (hoy solo se registra el token en `dispositivos_notificacion`).
+- Notificaciones push con la app cerrada: en Android requieren FCM (`firebase-admin` solo como canal de envío, usando los tokens de `dispositivos_notificacion`).
+- Chat en tiempo real con WebSockets (Socket.IO) en lugar de consulta periódica.
+- Almacenamiento de imágenes en un servicio externo (S3/R2) para producción, y limpieza de archivos de `archivos` que nunca se usaron.
+- Endpoint para actualizar la foto de perfil (falta columna/procedimiento en `usuarios`).
 - `servicioModel.buscarServicios` no pagina, no filtra por texto libre, no excluye inactivos/bloqueados y devuelve el teléfono del trabajador en una ruta pública — revisar antes de exponerlo a producción.
 - Endurecimiento pendiente: `helmet`, rate limiting en auth, CORS restringido a los orígenes reales, rechazar login de usuarios con `activo = FALSE`, y que el registro valide `id_rol` contra los roles permitidos en vez de aceptar cualquier valor.
 - Desfase de zona horaria en fechas devueltas por `mysql2` (ver conversación de la agenda) — pendiente decidir `dateStrings: true` vs. conversión explícita.

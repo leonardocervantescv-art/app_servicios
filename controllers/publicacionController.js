@@ -1,5 +1,5 @@
 const PublicacionModel = require('../models/publicacionModel');
-const { entero, texto, paginacion, esUrlHttps, manejarError, solicitudInvalida } = require('../utils/helpers');
+const { entero, texto, paginacion, esUrlImagen, manejarError, solicitudInvalida } = require('../utils/helpers');
 
 const MAX_IMAGENES = 10;
 
@@ -57,10 +57,10 @@ const crearPublicacion = async (req, res) => {
         if (titulo.length > 150) {
             return solicitudInvalida(res, 'El título no puede superar los 150 caracteres.');
         }
-        if (!Array.isArray(imagenes) || imagenes.length > MAX_IMAGENES || !imagenes.every(esUrlHttps)) {
+        if (!Array.isArray(imagenes) || imagenes.length > MAX_IMAGENES || !imagenes.every(esUrlImagen)) {
             return solicitudInvalida(
                 res,
-                `imagenes debe ser una lista de máximo ${MAX_IMAGENES} URLs https de hasta 255 caracteres.`
+                `imagenes debe ser una lista de máximo ${MAX_IMAGENES} imágenes: rutas devueltas por POST /api/archivos o URLs https de hasta 255 caracteres.`
             );
         }
 

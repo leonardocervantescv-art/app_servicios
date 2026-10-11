@@ -15,6 +15,22 @@ const paginacion = (query, limiteMax = 50, limiteDefecto = 20) => {
 
 const esUrlHttps = (valor) => typeof valor === 'string' && valor.length <= 255 && valor.startsWith('https://');
 
+// Imagen válida para guardar en la base: la ruta relativa que devuelve
+// POST /api/archivos (/uploads/...) o, por compatibilidad, una URL https externa.
+const RUTA_UPLOAD_VALIDA = /^\/uploads\/[A-Za-z0-9_\-/]+\.(jpg|png|webp)$/;
+const esUrlImagen = (valor) =>
+    typeof valor === 'string' && valor.length <= 255 &&
+    (esUrlHttps(valor) || (RUTA_UPLOAD_VALIDA.test(valor) && !valor.includes('//')));
+
+// Convierte una ruta relativa (/uploads/...) en URL absoluta para el cliente.
+// Usa PUBLIC_URL si está definida; si no, el host con el que llegó la petición
+// (así funciona igual desde localhost, 10.0.2.2 o la IP de la red local).
+const urlAbsoluta = (req, ruta) => {
+    if (!ruta || /^https?:\/\//.test(ruta)) return ruta;
+    const base = (process.env.PUBLIC_URL || `${req.protocol}://${req.get('host')}`).replace(/\/+$/, '');
+    return `${base}${ruta}`;
+};
+
 // Acepta 'YYYY-MM-DD HH:mm:ss' o cualquier formato ISO 8601 que Date entienda.
 const fechaValida = (valor) => {
     if (typeof valor !== 'string' || !valor.trim()) return null;
@@ -41,4 +57,14 @@ const manejarError = (res, error, contexto) => {
 
 const solicitudInvalida = (res, mensaje) => res.status(400).json({ ok: false, mensaje });
 
-module.exports = { entero, texto, paginacion, esUrlHttps, fechaValida, manejarError, solicitudInvalida };
+module.exports = {
+    entero,
+    texto,
+    paginacion,
+    esUrlHttps,
+    esUrlImagen,
+    urlAbsoluta,
+    fechaValida,
+    manejarError,
+    solicitudInvalida
+};
