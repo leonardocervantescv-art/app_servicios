@@ -1,9 +1,10 @@
 
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:manocerca/core/config/api_config.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://localhost:3000/api';
+  static String get baseUrl => ApiConfig.baseUrl;
 
   static Future<Map<String, dynamic>> obtenerCategorias() async {
     final uri = Uri.parse('$baseUrl/categorias');

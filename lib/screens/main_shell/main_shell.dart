@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:manocerca/core/theme/colors.dart';
+import 'package:manocerca/screens/account/account_screen.dart';
 import 'package:manocerca/screens/home/home_screen.dart';
 import 'package:manocerca/screens/messages/messages_screen.dart';
 
@@ -21,7 +22,7 @@ class _MainShellState extends State<MainShell> {
       const _Placeholder(icon: Icons.search, text: 'Buscar'),
       const _Placeholder(icon: Icons.assignment_turned_in_outlined, text: 'Tus solicitudes'),
       const MessagesScreen(),
-      const _Placeholder(icon: Icons.person_outline, text: 'Tu perfil'),
+      const AccountScreen(),
     ];
     return Scaffold(
       body: SafeArea(child: IndexedStack(index: _index, children: pages)),

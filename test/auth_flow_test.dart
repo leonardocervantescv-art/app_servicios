@@ -1,0 +1,194 @@
+import 'dart:convert';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:manocerca/app.dart';
+import 'package:manocerca/providers/auth_provider.dart';
+import 'package:manocerca/services/api_client.dart';
+import 'package:provider/provider.dart';
+
+http.Response _json(Object body, [int status = 200]) => http.Response(
+      jsonEncode(body),
+      status,
+      headers: {'content-type': 'application/json; charset=utf-8'},
+    );
+
+const _usuarioJson = {
+  'id_usuario': 7,
+  'nombre': 'Juan',
+  'apellido': 'Pérez',
+  'correo': 'juan@test.com',
+  'id_rol': 2,
+};
+
+void main() {
+  group('AuthProvider', () {
+    test('login correcto guarda usuario y token en memoria', () async {
+      final api = ApiClient(
+        baseUrl: 'http://test/api',
+        httpClient: MockClient((_) async =>
+            _json({'ok': true, 'token': 'tkn', 'usuario': _usuarioJson})),
+      );
+      final auth = AuthProvider(api);
+
+      final ok = await auth.login(correo: 'juan@test.com', contrasena: '123456');
+
+      expect(ok, true);
+      expect(auth.autenticado, true);
+      expect(auth.usuario!.nombreCompleto, 'Juan Pérez');
+      expect(auth.usuario!.esTrabajador, true);
+      expect(api.token, 'tkn');
+    });
+
+    test('login con credenciales malas deja el error y no autentica', () async {
+      final api = ApiClient(
+        baseUrl: 'http://test/api',
+        httpClient: MockClient((_) async =>
+            _json({'ok': false, 'mensaje': 'Credenciales inválidas.'}, 401)),
+      );
+      final auth = AuthProvider(api);
+
+      final ok = await auth.login(correo: 'a@b.com', contrasena: 'mala');
+
+      expect(ok, false);
+      expect(auth.autenticado, false);
+      expect(auth.error, 'Credenciales inválidas.');
+      expect(api.token, isNull);
+    });
+
+    test('cerrarSesion borra usuario y token', () async {
+      final api = ApiClient(
+        baseUrl: 'http://test/api',
+        httpClient: MockClient((_) async =>
+            _json({'ok': true, 'token': 'tkn', 'usuario': _usuarioJson})),
+      );
+      final auth = AuthProvider(api);
+      await auth.login(correo: 'juan@test.com', contrasena: '123456');
+
+      auth.cerrarSesion();
+
+      expect(auth.autenticado, false);
+      expect(api.token, isNull);
+    });
+
+    test('registrar manda el rol y el teléfono solo si existe', () async {
+      Map<String, dynamic>? enviado;
+      final api = ApiClient(
+        baseUrl: 'http://test/api',
+        httpClient: MockClient((req) async {
+          enviado = jsonDecode(req.body) as Map<String, dynamic>;
+          return _json({'ok': true, 'token': 't', 'usuario': _usuarioJson}, 201);
+        }),
+      );
+      final auth = AuthProvider(api);
+
+      await auth.registrar(
+        idRol: 2,
+        nombre: 'Juan',
+        apellido: 'Pérez',
+        correo: 'juan@test.com',
+        contrasena: '123456',
+        telefono: '',
+      );
+
+      expect(enviado!['id_rol'], 2);
+      expect(enviado!.containsKey('telefono'), false);
+    });
+  });
+
+  group('Flujo de pantallas', () {
+    testWidgets('bienvenida -> login -> home con el nombre -> cerrar sesión', (tester) async {
+      tester.view.physicalSize = const Size(1500, 3000);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
+
+      // La fuente de prueba es más ancha que la real y provoca falsos
+      // desbordamientos en el banner del Home; solo se ignoran esos avisos.
+      final manejadorOriginal = FlutterError.onError;
+      FlutterError.onError = (detalles) {
+        if (detalles.exceptionAsString().contains('overflowed')) return;
+        manejadorOriginal?.call(detalles);
+      };
+      addTearDown(() => FlutterError.onError = manejadorOriginal);
+
+      final api = ApiClient(
+        baseUrl: 'http://test/api',
+        httpClient: MockClient((_) async =>
+            _json({'ok': true, 'token': 'tkn', 'usuario': _usuarioJson})),
+      );
+
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            Provider<ApiClient>.value(value: api),
+            ChangeNotifierProvider(create: (_) => AuthProvider(api)),
+          ],
+          child: const Hogarix(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Comenzar'), findsOneWidget);
+
+      await tester.tap(find.text('Ya tengo una cuenta'));
+      await tester.pumpAndSettle();
+
+      final campos = find.byType(TextFormField);
+      await tester.enterText(campos.at(0), 'juan@test.com');
+      await tester.enterText(campos.at(1), '123456');
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Iniciar sesión'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Hola, Juan'), findsOneWidget);
+      expect(find.text('Comenzar'), findsNothing);
+
+      await tester.tap(find.text('Perfil'));
+      await tester.pumpAndSettle();
+      expect(find.text('Juan Pérez'), findsOneWidget);
+
+      await tester.tap(find.text('Cerrar sesión'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Comenzar'), findsOneWidget);
+      expect(find.text('Hola, Juan'), findsNothing);
+    });
+
+    testWidgets('el login valida el formulario antes de llamar al backend', (tester) async {
+      tester.view.physicalSize = const Size(1500, 3000);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
+
+      var llamadas = 0;
+      final api = ApiClient(
+        baseUrl: 'http://test/api',
+        httpClient: MockClient((_) async {
+          llamadas++;
+          return _json({'ok': true});
+        }),
+      );
+
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            Provider<ApiClient>.value(value: api),
+            ChangeNotifierProvider(create: (_) => AuthProvider(api)),
+          ],
+          child: const Hogarix(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Ya tengo una cuenta'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextFormField).at(0), 'no-es-correo');
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Iniciar sesión'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Ingresa un correo válido'), findsOneWidget);
+      expect(find.text('Ingresa tu contraseña'), findsOneWidget);
+      expect(llamadas, 0);
+    });
+  });
+}

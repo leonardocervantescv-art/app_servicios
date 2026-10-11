@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:manocerca/core/theme/app_theme.dart';
 import 'package:manocerca/core/theme/colors.dart';
+import 'package:manocerca/providers/auth_provider.dart';
 import 'package:manocerca/screens/pro_list/pro_list_screen.dart';
+import 'package:provider/provider.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -17,6 +19,7 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final nombre = context.watch<AuthProvider>().usuario?.nombre ?? '';
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
       child: Column(
@@ -33,8 +36,8 @@ class HomeScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 22),
-          const Text('Hola, Eduardo',
-              style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800)),
+          Text('Hola, $nombre',
+              style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800)),
           const SizedBox(height: 4),
           const Text('¿Qué servicio necesitas hoy?',
               style: TextStyle(color: C.muted, fontSize: 15)),

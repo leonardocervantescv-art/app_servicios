@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:manocerca/core/theme/colors.dart';
 import 'package:manocerca/core/widgets/buttons.dart';
-import 'package:manocerca/screens/main_shell/main_shell.dart';
+import 'package:manocerca/providers/auth_provider.dart';
+import 'package:manocerca/screens/auth/login_screen.dart';
+import 'package:manocerca/screens/auth/register_screen.dart';
+import 'package:provider/provider.dart';
 
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
@@ -17,14 +20,13 @@ class WelcomeScreen extends StatelessWidget {
         ),
       );
 
-  void _enter(BuildContext context) {
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const MainShell()),
-    );
+  void _ir(BuildContext context, Widget pantalla) {
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => pantalla));
   }
 
   @override
   Widget build(BuildContext context) {
+    final aviso = context.watch<AuthProvider>().error;
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
@@ -73,10 +75,18 @@ class WelcomeScreen extends StatelessWidget {
                   ),
                 ),
                 const Spacer(flex: 3),
-                PrimaryButton(text: 'Comenzar', onTap: () => _enter(context)),
+                if (aviso != null) ...[
+                  Text(aviso,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.redAccent, fontSize: 14)),
+                  const SizedBox(height: 16),
+                ],
+                PrimaryButton(
+                    text: 'Comenzar',
+                    onTap: () => _ir(context, const RegisterScreen())),
                 const SizedBox(height: 16),
                 GestureDetector(
-                  onTap: () => _enter(context),
+                  onTap: () => _ir(context, const LoginScreen()),
                   child: const Text(
                     'Ya tengo una cuenta',
                     style: TextStyle(

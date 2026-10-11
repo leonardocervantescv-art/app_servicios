@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:manocerca/core/theme/app_theme.dart';
-//import 'package:manocerca/screens/welcome/welcome_screen.dart';
-import 'package:manocerca/screens/home/api_test_screen.dart';
+import 'package:manocerca/screens/auth/auth_gate.dart';
+// import 'package:manocerca/screens/home/api_test_screen.dart';
 
 class Hogarix extends StatelessWidget {
   const Hogarix({super.key});
@@ -12,7 +12,7 @@ class Hogarix extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Hogarix',
       theme: AppTheme.dark,
-      home: const ApiTestScreen(),
+      home: const AuthGate(),
     );
   }
 }
