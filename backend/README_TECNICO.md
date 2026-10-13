@@ -205,7 +205,7 @@ No hay suite de tests automatizada todavía. El flujo usado durante el desarroll
 - Chat en tiempo real con WebSockets (Socket.IO) en lugar de consulta periódica.
 - Almacenamiento de imágenes en un servicio externo (S3/R2) para producción, y limpieza de archivos de `archivos` que nunca se usaron.
 - Endpoint para actualizar la foto de perfil (falta columna/procedimiento en `usuarios`).
-- `servicioModel.buscarServicios` no pagina, no filtra por texto libre, no excluye inactivos/bloqueados y devuelve el teléfono del trabajador en una ruta pública — revisar antes de exponerlo a producción.
+- `servicioModel.buscarServicios` no pagina, no filtra por texto libre y no puede excluir bloqueados (la ruta es pública). Desde la migración 002 ya devuelve calificación y disponibilidad, excluye inactivos y no envía el teléfono.
 - Endurecimiento pendiente: `helmet`, rate limiting en auth, CORS restringido a los orígenes reales, rechazar login de usuarios con `activo = FALSE`, y que el registro valide `id_rol` contra los roles permitidos en vez de aceptar cualquier valor.
-- Desfase de zona horaria en fechas devueltas por `mysql2` (ver conversación de la agenda) — pendiente decidir `dateStrings: true` vs. conversión explícita.
-- Consolidar en `database/schema.sql` todas las tablas/procedimientos aplicados después del archivo original.
+- Zona horaria: la agenda (`GET /api/agenda`) ya devuelve `fecha_inicio`/`fecha_fin` como texto `YYYY-MM-DD HH:mm:ss` (hora de pared, sin conversión a UTC). El resto de rutas sigue devolviendo los `DATETIME` como `Date` de `mysql2` (ISO en UTC); revisar cuando se conecten solicitudes, chat y notificaciones.
+- El esquema completo ya está consolidado en `sql/schema_completo.sql`; los cambios nuevos se agregan como migraciones numeradas y hay que regenerar ese archivo.

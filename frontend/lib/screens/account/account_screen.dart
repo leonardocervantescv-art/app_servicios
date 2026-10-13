@@ -4,6 +4,7 @@ import 'package:manocerca/core/theme/colors.dart';
 import 'package:manocerca/core/widgets/avatar.dart';
 import 'package:manocerca/core/widgets/buttons.dart';
 import 'package:manocerca/providers/auth_provider.dart';
+import 'package:manocerca/screens/agenda/agenda_screen.dart';
 import 'package:manocerca/screens/servicios/mis_servicios_screen.dart';
 import 'package:provider/provider.dart';
 
@@ -36,34 +37,18 @@ class AccountScreen extends StatelessWidget {
           ),
           const SizedBox(height: 36),
           if (usuario.esTrabajador) ...[
-            InkWell(
-              borderRadius: BorderRadius.circular(16),
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const MisServiciosScreen()),
-              ),
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: cardDeco(),
-                child: Row(
-                  children: const [
-                    Icon(Icons.handyman, color: C.light),
-                    SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Mis servicios',
-                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-                          SizedBox(height: 2),
-                          Text('Lo que ofreces y tu disponibilidad',
-                              style: TextStyle(color: C.muted, fontSize: 12)),
-                        ],
-                      ),
-                    ),
-                    Icon(Icons.chevron_right, color: C.muted),
-                  ],
-                ),
-              ),
+            _Atajo(
+              icono: Icons.handyman,
+              titulo: 'Mis servicios',
+              detalle: 'Lo que ofreces y tu disponibilidad',
+              destino: const MisServiciosScreen(),
+            ),
+            const SizedBox(height: 12),
+            _Atajo(
+              icono: Icons.calendar_month,
+              titulo: 'Mi agenda',
+              detalle: 'Tu calendario de citas y trabajos',
+              destino: const AgendaScreen(),
             ),
             const SizedBox(height: 16),
           ],
@@ -73,6 +58,49 @@ class AccountScreen extends StatelessWidget {
             onTap: () => context.read<AuthProvider>().cerrarSesion(),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _Atajo extends StatelessWidget {
+  final IconData icono;
+  final String titulo;
+  final String detalle;
+  final Widget destino;
+  const _Atajo({
+    required this.icono,
+    required this.titulo,
+    required this.detalle,
+    required this.destino,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => destino)),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: cardDeco(),
+        child: Row(
+          children: [
+            Icon(icono, color: C.light),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(titulo,
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 2),
+                  Text(detalle, style: const TextStyle(color: C.muted, fontSize: 12)),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: C.muted),
+          ],
+        ),
       ),
     );
   }

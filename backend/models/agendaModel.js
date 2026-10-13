@@ -1,5 +1,11 @@
 const db = require('../config/db');
 
+// Las horas de la agenda son las que eligió el trabajador (hora de pared, sin
+// zona horaria). Se devuelven como texto 'YYYY-MM-DD HH:mm:ss' para que no se
+// conviertan a UTC y se vean distintas según el servidor o el celular.
+const comoTexto = (campo, siguiente) =>
+    campo.type === 'DATETIME' ? campo.string() : siguiente();
+
 class AgendaModel {
     static async crear(id_usuario, { titulo, descripcion, fecha_inicio, fecha_fin }) {
         const [results] = await db.query(
@@ -10,7 +16,11 @@ class AgendaModel {
     }
 
     static async listar(id_usuario, desde, hasta) {
-        const [results] = await db.query('CALL sp_evento_listar(?, ?, ?)', [id_usuario, desde, hasta]);
+        const [results] = await db.query({
+            sql: 'CALL sp_evento_listar(?, ?, ?)',
+            values: [id_usuario, desde, hasta],
+            typeCast: comoTexto
+        });
         return results[0];
     }
 
