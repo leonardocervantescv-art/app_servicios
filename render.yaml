@@ -1,0 +1,33 @@
+# Blueprint de Render para el backend. Al crearlo, Render pide los valores marcados con
+# sync: false (credenciales de la base); JWT_SECRET lo genera solo.
+services:
+  - type: web
+    name: oficiolink-api
+    runtime: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm ci --omit=dev
+    startCommand: node server.js
+    healthCheckPath: /api/salud
+    autoDeployTrigger: commit
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_NAME
+        sync: false
+      - key: DB_SSL_CA
+        sync: false
+      - key: PUBLIC_URL
+        sync: false

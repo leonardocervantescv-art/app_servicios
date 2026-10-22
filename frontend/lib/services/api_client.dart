@@ -69,7 +69,8 @@ class ApiClient {
 
     final http.Response response;
     try {
-      final stream = await _http.send(request).timeout(const Duration(seconds: 15));
+      // 60 s: el hosting gratuito tarda hasta un minuto en despertar tras un rato inactivo.
+      final stream = await _http.send(request).timeout(const Duration(seconds: 60));
       response = await http.Response.fromStream(stream);
     } on TimeoutException {
       throw const ApiException('El servidor tardó demasiado en responder. Intenta de nuevo.');

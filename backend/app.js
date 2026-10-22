@@ -5,8 +5,14 @@ const { UPLOADS_DIR, RUTA_PUBLICA } = require('./config/almacenamiento');
 
 const app = express();
 
+// Detrás del proxy de la plataforma (Render, etc.): req.protocol refleja el HTTPS real.
+app.set('trust proxy', 1);
+
 app.use(cors());
 app.use(express.json());
+
+// Comprobación de salud para la plataforma de hosting; no toca la base de datos.
+app.get('/api/salud', (req, res) => res.json({ ok: true }));
 
 // Imágenes subidas con POST /api/archivos
 app.use(RUTA_PUBLICA, express.static(UPLOADS_DIR, {

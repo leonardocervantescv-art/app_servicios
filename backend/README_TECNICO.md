@@ -17,7 +17,7 @@ Backend REST en Node.js/Express + MySQL para la app de servicios/trabajos. Para 
 app.js                  # registro de middlewares globales y montaje de routers
 server.js                # arranque del servidor (lee PORT)
 config/
-  db.js                  # pool mysql2 (lee DB_HOST, DB_USER, DB_PASSWORD, DB_NAME)
+  db.js                  # pool mysql2 (lee DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME, DB_SSL_CA)
   constantes.js           # ROLES, TIPOS_PAGO, ESTADOS_SOLICITUD, PLATAFORMAS, TIPOS_NOTIFICACION, CHAT
   almacenamiento.js       # UPLOADS_DIR, límites y detección de tipo de imagen para multer
 middlewares/
@@ -52,14 +52,18 @@ mysql -u root -p servicios_app < sql/001_chat_archivos_notificaciones.sql
 
 ```
 DB_HOST=localhost
+DB_PORT=3306     # opcional (por defecto 3306); las bases en la nube usan otro puerto
 DB_USER=root
 DB_PASSWORD=...
 DB_NAME=servicios_app
 PORT=3001
 JWT_SECRET=...   # obligatorio: sin fallback en código, la app falla si falta
+DB_SSL_CA=...    # opcional: certificado CA en texto, para bases en la nube que exigen SSL (Aiven)
 UPLOADS_DIR=...  # opcional: carpeta de imágenes subidas (por defecto ./uploads)
-PUBLIC_URL=...   # opcional: URL pública del servidor para armar URLs absolutas (por defecto, el host de la petición)
+PUBLIC_URL=...   # en producción ponla siempre (https://...); en local se usa el host de la petición
 ```
+
+Despliegue en Render + Aiven: el `render.yaml` de la raíz define el servicio (`rootDir: backend`) y `GET /api/salud` es su comprobación de salud.
 
 ## Patrón de capas
 
