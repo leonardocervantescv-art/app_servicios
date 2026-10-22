@@ -38,3 +38,5 @@ frontend/android/.gradle/
 # Archivos generados por Android y Gradle
 frontend/android/build/
 frontend/android/.gradle/
+backend/ca.pem
+backend/ca.pem
