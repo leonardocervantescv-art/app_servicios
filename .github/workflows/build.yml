@@ -1,1 +1,46 @@
 
+# Nombre del workflow
+name: Verificacion del Backend
+
+# Eventos que activan la automatizacion
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+# Permisos necesarios
+permissions:
+  contents: read
+
+# Trabajos que ejecutara el workflow
+jobs:
+  verificar:
+    name: Verificar backend Node.js
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Descargar el codigo del repositorio
+      - name: Descargar codigo
+        uses: actions/checkout@v4
+
+      # 2. Configurar el entorno de Node.js
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      # 3. Instalar las dependencias del proyecto
+      - name: Instalar dependencias
+        run: npm ci
+
+      # 4. Verificar la sintaxis de los archivos JavaScript
+      - name: Verificar sintaxis JavaScript
+        run: |
+          find . -path './node_modules' -prune -o \
+            -type f -name '*.js' -print0 | \
+            xargs -0 -r -n1 node --check
