@@ -7,3 +7,7 @@ app.listen(PORT, () => {
     console.log(`\n Servidor corriendo en el puerto ${PORT}`);
     console.log(`servidor en http://localhost:${PORT}\n`);
 });
+
+function pruebaError() {
+    console.log("Error intencional"
+}
