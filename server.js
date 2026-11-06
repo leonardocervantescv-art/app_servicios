@@ -9,5 +9,5 @@ app.listen(PORT, () => {
 });
 
 function pruebaError() {
-    console.log("Error intencional"
+    console.log("Error corregido");
 }
